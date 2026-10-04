@@ -1,0 +1,1460 @@
+return
+end
+print("Tuffware Loaded Successfully!")
+local _loadstring = loadstring
+local _getgenv = getgenv
+local _setclipboard = setclipboard
+local find = table.find
+local UserInputService = game:GetService("UserInputService")
+if AirHub or AirHubV2Loaded then
+    return
+end
+_getgenv().AirHub = {}
+_loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/AirHub/main/Modules/Aimbot.lua"))()
+_loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/AirHub/main/Modules/Wall%20Hack.lua"))()
+-- Tuffware custom Nocturne-style UI (replaces the previous UI library)
+local v8 = {}
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+local UI_COLORS = {
+    Background = Color3.fromRGB(14, 14, 15),
+    Panel = Color3.fromRGB(18, 18, 20),
+    Panel2 = Color3.fromRGB(24, 24, 27),
+    Border = Color3.fromRGB(38, 35, 40),
+    Accent = Color3.fromRGB(220, 105, 230),
+    AccentDark = Color3.fromRGB(100, 45, 110),
+    Text = Color3.fromRGB(230, 220, 232),
+    Muted = Color3.fromRGB(150, 140, 153),
+}
+
+local function make(className, props, parent)
+    local obj = Instance.new(className)
+    for key, value in pairs(props or {}) do
+        obj[key] = value
+    end
+    obj.Parent = parent
+    return obj
+end
+
+local function corner(parent, radius)
+    make("UICorner", {CornerRadius = UDim.new(0, radius or 4)}, parent)
+end
+
+local function stroke(parent, color, thickness)
+    make("UIStroke", {Color = color or UI_COLORS.Border, Thickness = thickness or 1}, parent)
+end
+
+local function label(parent, text, size, color, font)
+    return make("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = text or "",
+        TextColor3 = color or UI_COLORS.Text,
+        TextSize = size or 13,
+        Font = font or Enum.Font.Code,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Size = UDim2.new(1, 0, 0, 22),
+    }, parent)
+end
+
+function v8:CreateWindow(config)
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local gui = make("ScreenGui", {
+        Name = "TuffwareUI",
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    }, playerGui)
+
+    local main = make("Frame", {
+        Name = "Main",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 900, 0, 550),
+        BackgroundColor3 = UI_COLORS.Background,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+    }, gui)
+    corner(main, 3)
+    stroke(main, UI_COLORS.Border, 1)
+
+    local top = make("Frame", {
+        Name = "TopBar",
+        Size = UDim2.new(1, 0, 0, 58),
+        BackgroundColor3 = Color3.fromRGB(12, 12, 13),
+        BorderSizePixel = 0,
+    }, main)
+    local brand = label(top, "☾  Tuffware", 21, UI_COLORS.Accent, Enum.Font.Code)
+    brand.Position = UDim2.new(0, 16, 0, 7)
+    brand.Size = UDim2.new(0, 165, 0, 42)
+
+    local search = make("TextBox", {
+        PlaceholderText = "Search here.",
+        Text = "",
+        ClearTextOnFocus = false,
+        Font = Enum.Font.Code,
+        TextSize = 14,
+        TextColor3 = UI_COLORS.Text,
+        PlaceholderColor3 = UI_COLORS.Muted,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BackgroundColor3 = UI_COLORS.Panel,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 190, 0, 12),
+        Size = UDim2.new(1, -205, 0, 36),
+    }, top)
+    corner(search, 2)
+    stroke(search, UI_COLORS.Border, 1)
+
+    local sidebar = make("Frame", {
+        Name = "Sidebar",
+        Position = UDim2.new(0, 0, 0, 58),
+        Size = UDim2.new(0, 145, 1, -58),
+        BackgroundColor3 = Color3.fromRGB(13, 13, 14),
+        BorderSizePixel = 0,
+    }, main)
+    stroke(sidebar, UI_COLORS.Border, 1)
+
+    local sideTitle = label(sidebar, "Basic", 13, UI_COLORS.Muted)
+    sideTitle.Position = UDim2.new(0, 10, 0, 7)
+    sideTitle.Size = UDim2.new(1, -20, 0, 24)
+
+    local content = make("Frame", {
+        Name = "Content",
+        Position = UDim2.new(0, 145, 0, 58),
+        Size = UDim2.new(1, -145, 1, -58),
+        BackgroundColor3 = UI_COLORS.Background,
+        BorderSizePixel = 0,
+    }, main)
+
+    local tabList = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 35),
+        Size = UDim2.new(1, 0, 1, -35),
+    }, sidebar)
+    make("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, tabList)
+
+    local window
+    window = {
+        Gui = gui,
+        Main = main,
+        Content = content,
+        Sidebar = tabList,
+        Tabs = {},
+        Sections = {},
+        Controls = {},
+        Unload = function()
+            if v8.UnloadCallback then pcall(v8.UnloadCallback) end
+            gui:Destroy()
+        end,
+        ResetAll = function(self)
+            for _, control in ipairs(window.Controls) do
+                if control.Reset then
+                    pcall(control.Reset)
+                end
+            end
+        end,
+    }
+
+    function window:CreateTab(tabConfig)
+        local tabName = tabConfig.Name or "Tab"
+        local button = make("TextButton", {
+            Name = tabName .. "Button",
+            Text = "⌂   " .. tabName,
+            Font = Enum.Font.Code,
+            TextSize = 13,
+            TextColor3 = UI_COLORS.Text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundColor3 = UI_COLORS.Panel,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, -7, 0, 39),
+            AutoButtonColor = false,
+        }, tabList)
+        corner(button, 2)
+        local accent = make("Frame", {
+            BackgroundColor3 = UI_COLORS.Accent,
+            BorderSizePixel = 0,
+            Size = UDim2.new(0, 2, 1, 0),
+            Visible = false,
+        }, button)
+
+        local page = make("ScrollingFrame", {
+            Name = tabName .. "Page",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 1, 0),
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = UI_COLORS.Accent,
+            Visible = false,
+        }, content)
+        local pagePadding = make("UIPadding", {
+            PaddingTop = UDim.new(0, 12),
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+            PaddingBottom = UDim.new(0, 12),
+        }, page)
+        local columns = make("UIListLayout", {
+            Padding = UDim.new(0, 10),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, page)
+        columns:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            page.CanvasSize = UDim2.new(0, 0, 0, columns.AbsoluteContentSize.Y + 24)
+        end)
+
+        local tab = {Name = tabName, Page = page, Sections = {}, Window = window}
+        function tab:CreateSection(sectionConfig)
+            local sectionName = sectionConfig.Name or "Section"
+            local sectionFrame = make("Frame", {
+                Name = sectionName,
+                BackgroundColor3 = UI_COLORS.Panel,
+                BorderSizePixel = 0,
+                Size = UDim2.new(1, -4, 0, 44),
+                AutomaticSize = Enum.AutomaticSize.Y,
+            }, page)
+            corner(sectionFrame, 2)
+            stroke(sectionFrame, UI_COLORS.Border, 1)
+
+            local title = label(sectionFrame, sectionName, 13, UI_COLORS.Accent)
+            title.Position = UDim2.new(0, 10, 0, 4)
+            title.Size = UDim2.new(1, -20, 0, 24)
+
+            local holder = make("Frame", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 8, 0, 31),
+                Size = UDim2.new(1, -16, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+            }, sectionFrame)
+            local layout = make("UIListLayout", {
+                Padding = UDim.new(0, 5),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+            }, holder)
+            local padding = make("UIPadding", {
+                PaddingBottom = UDim.new(0, 8),
+            }, holder)
+            layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                holder.Size = UDim2.new(1, -16, 0, layout.AbsoluteContentSize.Y + 8)
+                sectionFrame.Size = UDim2.new(1, -4, 0, layout.AbsoluteContentSize.Y + 45)
+            end)
+
+            local section = {Frame = sectionFrame, Holder = holder, Name = sectionName}
+            local function addRow(rowName)
+                local row = make("Frame", {
+                    Name = rowName or "Control",
+                    BackgroundColor3 = UI_COLORS.Panel2,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 0, 31),
+                }, holder)
+                corner(row, 2)
+                return row
+            end
+            local function addControl(kind, options)
+                options = options or {}
+                local row = addRow(options.Name or kind)
+                local titleLabel = label(row, options.Name or kind, 12, UI_COLORS.Text)
+                titleLabel.Position = UDim2.new(0, 8, 0, 0)
+                titleLabel.Size = UDim2.new(0.48, -8, 1, 0)
+                local control = {Row = row, Value = options.Value}
+                if kind == "Toggle" then
+                    local toggle = make("TextButton", {
+                        Text = options.Value and "ON" or "OFF",
+                        Font = Enum.Font.Code, TextSize = 11,
+                        TextColor3 = options.Value and UI_COLORS.Accent or UI_COLORS.Muted,
+                        BackgroundColor3 = UI_COLORS.Background,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(1, -62, 0, 5),
+                        Size = UDim2.new(0, 54, 0, 21),
+                    }, row)
+                    corner(toggle, 2)
+                    local function setValue(value, callBack)
+                        control.Value = value
+                        toggle.Text = value and "ON" or "OFF"
+                        toggle.TextColor3 = value and UI_COLORS.Accent or UI_COLORS.Muted
+                        if callBack and options.Callback then options.Callback(value) end
+                    end
+                    toggle.MouseButton1Click:Connect(function() setValue(not control.Value, true) end)
+                    setmetatable(control, {__newindex = function(t, k, v)
+                        rawset(t, k, v)
+                        if k == "Default" then setValue(v, false) end
+                    end})
+                elseif kind == "Slider" then
+                    local minV, maxV = options.Min or 0, options.Max or 100
+                    local val = tonumber(options.Value) or minV
+                    local bar = make("Frame", {
+                        BackgroundColor3 = UI_COLORS.Background,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0.53, 0, 0, 10),
+                        Size = UDim2.new(0.39, 0, 0, 10),
+                    }, row)
+                    corner(bar, 3)
+                    local fill = make("Frame", {
+                        BackgroundColor3 = UI_COLORS.Accent,
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(math.clamp((val - minV) / math.max(maxV - minV, 0.001), 0, 1), 0, 1, 0),
+                    }, bar)
+                    corner(fill, 3)
+                    local valueLabel = label(row, tostring(val), 11, UI_COLORS.Muted)
+                    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+                    valueLabel.Position = UDim2.new(0.92, 0, 0, 0)
+                    valueLabel.Size = UDim2.new(0.08, -6, 1, 0)
+                    local slider = make("TextButton", {
+                        Text = "", BackgroundTransparency = 1, BorderSizePixel = 0,
+                        Size = UDim2.new(1, 0, 1, 0),
+                    }, bar)
+                    local function setValue(value, callBack)
+                        value = math.clamp(tonumber(value) or minV, minV, maxV)
+                        if options.Decimals == 1 then value = math.floor(value * 10 + 0.5) / 10
+                        elseif options.Decimals == 2 then value = math.floor(value * 100 + 0.5) / 100
+                        else value = math.floor(value + 0.5) end
+                        control.Value = value
+                        fill.Size = UDim2.new(math.clamp((value - minV) / math.max(maxV - minV, 0.001), 0, 1), 0, 1, 0)
+                        valueLabel.Text = tostring(value)
+                        if callBack and options.Callback then options.Callback(value) end
+                    end
+                    slider.MouseButton1Down:Connect(function()
+                        local mouse = LocalPlayer:GetMouse()
+                        local function update()
+                            setValue(minV + (maxV - minV) * math.clamp((mouse.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1), true)
+                        end
+                        update()
+                        local moveConn
+                        moveConn = UserInputService.InputChanged:Connect(function(input)
+                            if input.UserInputType == Enum.UserInputType.MouseMovement then update() end
+                        end)
+                        local endConn
+                        endConn = UserInputService.InputEnded:Connect(function(input)
+                            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                                if moveConn then moveConn:Disconnect() end
+                                if endConn then endConn:Disconnect() end
+                            end
+                        end)
+                    end)
+                    setmetatable(control, {__newindex = function(t, k, v)
+                        rawset(t, k, v)
+                        if k == "Default" then setValue(v, false) end
+                    end})
+                elseif kind == "Dropdown" then
+                    local values = options.List or {}
+                    local current = tostring(options.Value or options.Nothing or (values[1] or ""))
+                    local button = make("TextButton", {
+                        Text = current .. "  ▾", Font = Enum.Font.Code, TextSize = 11,
+                        TextColor3 = UI_COLORS.Accent, BackgroundColor3 = UI_COLORS.Background,
+                        BorderSizePixel = 0, Position = UDim2.new(0.52, 0, 0, 4),
+                        Size = UDim2.new(0.46, -4, 0, 23),
+                    }, row)
+                    corner(button, 2)
+                    local index = table.find(values, current) or 0
+                    local function setValue(value, callBack)
+                        control.Value = value
+                        button.Text = tostring(value) .. "  ▾"
+                        index = table.find(values, value) or index
+                        if callBack and options.Callback then options.Callback(value) end
+                    end
+                    button.MouseButton1Click:Connect(function()
+                        if #values == 0 then return end
+                        index = (index % #values) + 1
+                        setValue(values[index], true)
+                    end)
+                    setmetatable(control, {__newindex = function(t, k, v)
+                        rawset(t, k, v)
+                        if k == "Default" then setValue(v, false) end
+                    end})
+                elseif kind == "Textbox" then
+                    local box = make("TextBox", {
+                        Text = tostring(options.Value or ""), PlaceholderText = "Enter value",
+                        ClearTextOnFocus = false, Font = Enum.Font.Code, TextSize = 11,
+                        TextColor3 = UI_COLORS.Accent, PlaceholderColor3 = UI_COLORS.Muted,
+                        BackgroundColor3 = UI_COLORS.Background, BorderSizePixel = 0,
+                        Position = UDim2.new(0.52, 0, 0, 4), Size = UDim2.new(0.46, -4, 0, 23),
+                    }, row)
+                    corner(box, 2)
+                    box.FocusLost:Connect(function()
+                        control.Value = box.Text
+                        if options.Callback then options.Callback(box.Text) end
+                    end)
+                    setmetatable(control, {__newindex = function(t, k, v)
+                        rawset(t, k, v)
+                        if k == "Default" then control.Value = v; box.Text = tostring(v or "") end
+                    end})
+                elseif kind == "Colorpicker" then
+                    local button = make("TextButton", {
+                        Text = "  COLOR", Font = Enum.Font.Code, TextSize = 10,
+                        TextColor3 = UI_COLORS.Text, BackgroundColor3 = options.Value or UI_COLORS.Accent,
+                        BorderSizePixel = 0, Position = UDim2.new(1, -78, 0, 5),
+                        Size = UDim2.new(0, 70, 0, 21),
+                    }, row)
+                    corner(button, 2)
+                    local colors = {
+                        Color3.fromRGB(220, 105, 230), Color3.fromRGB(100, 180, 255),
+                        Color3.fromRGB(255, 105, 120), Color3.fromRGB(110, 230, 160),
+                        Color3.fromRGB(255, 210, 90), Color3.fromRGB(235, 235, 235),
+                    }
+                    local index = 1
+                    local function setValue(value, callBack)
+                        control.Value = value
+                        button.BackgroundColor3 = value
+                        if callBack and options.Callback then options.Callback(value) end
+                    end
+                    button.MouseButton1Click:Connect(function()
+                        index = (index % #colors) + 1
+                        setValue(colors[index], true)
+                    end)
+                    setmetatable(control, {__newindex = function(t, k, v)
+                        rawset(t, k, v)
+                        if k == "Default" then setValue(v, false) end
+                    end})
+                elseif kind == "Button" then
+                    local button = make("TextButton", {
+                        Text = options.Name or "Button", Font = Enum.Font.Code, TextSize = 12,
+                        TextColor3 = UI_COLORS.Accent, BackgroundColor3 = UI_COLORS.Background,
+                        BorderSizePixel = 0, Position = UDim2.new(0.53, 0, 0, 4),
+                        Size = UDim2.new(0.45, -4, 0, 23),
+                    }, row)
+                    corner(button, 2)
+                    button.MouseButton1Click:Connect(function()
+                        if options.Callback then options.Callback() end
+                    end)
+                end
+                control.Reset = function()
+                    local defaultValue = control.Default
+                    if kind == "Toggle" or kind == "Slider" or kind == "Dropdown" or kind == "Textbox" or kind == "Colorpicker" then
+                        if kind == "Toggle" then
+                            control.Value = defaultValue
+                            local toggleButton = row:FindFirstChildWhichIsA("TextButton")
+                            if toggleButton then
+                                toggleButton.Text = defaultValue and "ON" or "OFF"
+                                toggleButton.TextColor3 = defaultValue and UI_COLORS.Accent or UI_COLORS.Muted
+                            end
+                            if options.Callback then pcall(options.Callback, defaultValue) end
+                        elseif kind == "Slider" then
+                            control.Value = defaultValue
+                            local bar = row:FindFirstChildWhichIsA("Frame")
+                            local valueLabel = row:FindFirstChildWhichIsA("TextLabel")
+                            if valueLabel then valueLabel.Text = tostring(defaultValue) end
+                            if bar and bar:FindFirstChildWhichIsA("Frame") then
+                                local minV, maxV = options.Min or 0, options.Max or 100
+                                bar:FindFirstChildWhichIsA("Frame").Size = UDim2.new(math.clamp(((tonumber(defaultValue) or minV) - minV) / math.max(maxV - minV, 0.001), 0, 1), 0, 1, 0)
+                            end
+                            if options.Callback then pcall(options.Callback, defaultValue) end
+                        elseif kind == "Dropdown" then
+                            control.Value = defaultValue
+                            local button = row:FindFirstChildWhichIsA("TextButton")
+                            if button then button.Text = tostring(defaultValue) .. "  ▾" end
+                            if options.Callback then pcall(options.Callback, defaultValue) end
+                        elseif kind == "Textbox" then
+                            control.Value = defaultValue
+                            local box = row:FindFirstChildWhichIsA("TextBox")
+                            if box then box.Text = tostring(defaultValue or "") end
+                            if options.Callback then pcall(options.Callback, defaultValue) end
+                        elseif kind == "Colorpicker" then
+                            control.Value = defaultValue
+                            local button = row:FindFirstChildWhichIsA("TextButton")
+                            if button and typeof(defaultValue) == "Color3" then button.BackgroundColor3 = defaultValue end
+                            if options.Callback then pcall(options.Callback, defaultValue) end
+                        end
+                    end
+                end
+                table.insert(window.Controls, control)
+                return control
+            end
+
+            function section:AddToggle(options) return addControl("Toggle", options) end
+            function section:AddSlider(options) return addControl("Slider", options) end
+            function section:AddDropdown(options) return addControl("Dropdown", options) end
+            function section:AddTextbox(options) return addControl("Textbox", options) end
+            function section:AddColorpicker(options) return addControl("Colorpicker", options) end
+            function section:AddButton(options) return addControl("Button", options) end
+
+            section.AddToggle = section.AddToggle
+            table.insert(tab.Sections, section)
+            return section
+        end
+
+        button.MouseButton1Click:Connect(function()
+            for _, other in ipairs(window.Tabs) do
+                other.Page.Visible = false
+                other.Button.BackgroundColor3 = UI_COLORS.Panel
+                other.Accent.Visible = false
+            end
+            page.Visible = true
+            button.BackgroundColor3 = UI_COLORS.Panel2
+            accent.Visible = true
+        end)
+        tab.Button = button
+        tab.Accent = accent
+        table.insert(window.Tabs, tab)
+        if #window.Tabs == 1 then
+            page.Visible = true
+            button.BackgroundColor3 = UI_COLORS.Panel2
+            accent.Visible = true
+        end
+        return tab
+    end
+
+    search:GetPropertyChangedSignal("Text"):Connect(function()
+        local query = string.lower(search.Text)
+        for _, tab in ipairs(window.Tabs) do
+            for _, section in ipairs(tab.Sections) do
+                for _, row in ipairs(section.Holder:GetChildren()) do
+                    if row:IsA("Frame") then
+                        local match = query == "" or string.find(string.lower(row.Name), query, 1, true)
+                        row.Visible = match and true or false
+                    end
+                end
+            end
+        end
+    end)
+
+    local dragging, dragStart, startPos
+    top.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = main.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    v8.Unload = function()
+        window:Unload()
+    end
+    v8.ResetAll = function()
+        window:ResetAll()
+    end
+    return window
+end
+local Aimbot = _getgenv().AirHub.Aimbot
+local WallHack = _getgenv().AirHub.WallHack
+local t1 = {
+	"Head",
+	"HumanoidRootPart",
+	"Torso",
+	"Left Arm",
+	"Right Arm",
+	"Left Leg",
+	"Right Leg",
+	"LeftHand",
+	"RightHand",
+	"LeftLowerArm",
+	"RightLowerArm",
+	"LeftUpperArm",
+	"RightUpperArm",
+	"LeftFoot",
+	"LeftLowerLeg",
+	"UpperTorso",
+	"LeftUpperLeg",
+	"RightFoot",
+	"RightLowerLeg",
+	"LowerTorso",
+	"RightUpperLeg"
+}
+local t2 = {
+	"UI",
+	"System",
+	"Plex",
+	"Monospace"
+}
+local t3 = {
+	"Bottom",
+	"Center",
+	"Mouse"
+}
+function v8.UnloadCallback()
+    Aimbot.Functions:Exit()
+    WallHack.Functions:Exit()
+    _getgenv().AirHub = nil
+end
+local t4 = {
+	Image = "7059346386",
+	Info = "Made by Swempex\nPowered by Pepsi's UI Library",
+	Credit = false
+}
+local v15 = v8:CreateWindow({
+	Name = "Tuffware",
+	Themeable = t4,
+	Background = "",
+	Theme = "{\"__Designer.Colors.topGradient\":\"3F0C64\",\"__Designer.Colors.section\":\"C259FB\",\"__Designer.Colors.hoveredOptionBottom\":\"4819B4\",\"__Designer.Background.ImageAssetID\":\"rbxassetid://4427304036\",\"__Designer.Colors.selectedOption\":\"4E149C\",\"__Designer.Colors.unselectedOption\":\"482271\",\"__Designer.Files.WorkspaceFile\":\"AirHub\",\"__Designer.Colors.unhoveredOptionTop\":\"310269\",\"__Designer.Colors.outerBorder\":\"391D57\",\"__Designer.Background.ImageColor\":\"69009C\",\"__Designer.Colors.tabText\":\"B9B9B9\",\"__Designer.Colors.elementBorder\":\"160B24\",\"__Designer.Background.ImageTransparency\":100,\"__Designer.Colors.background\":\"1E1237\",\"__Designer.Colors.innerBorder\":\"531E79\",\"__Designer.Colors.bottomGradient\":\"361A60\",\"__Designer.Colors.sectionBackground\":\"21002C\",\"__Designer.Colors.hoveredOptionTop\":\"6B10F9\",\"__Designer.Colors.otherElementText\":\"7B44A8\",\"__Designer.Colors.main\":\"AB26FF\",\"__Designer.Colors.elementText\":\"9F7DB5\",\"__Designer.Colors.unhoveredOptionBottom\":\"3E0088\",\"__Designer.Background.UseBackgroundImage\":false}"
+})
+local v16 = v15:CreateTab({
+	Name = "Aimbot"
+})
+local v17 = v15:CreateTab({
+	Name = "Visuals"
+})
+local v18 = v15:CreateTab({
+	Name = "Crosshair"
+})
+local v19 = v15:CreateTab({
+	Name = "Functions"
+})
+local v20 = v16:CreateSection({
+	Name = "Values"
+})
+local v21 = v16:CreateSection({
+	Name = "Checks"
+})
+local v22 = v16:CreateSection({
+	Name = "Third Person"
+})
+local v23 = v16:CreateSection({
+	Name = "Field Of View",
+	Side = "Right"
+})
+local v24 = v16:CreateSection({
+	Name = "FOV Circle Appearance",
+	Side = "Right"
+})
+local v25 = v17:CreateSection({
+	Name = "Checks"
+})
+local v26 = v17:CreateSection({
+	Name = "ESP Settings"
+})
+local v27 = v17:CreateSection({
+	Name = "Boxes Settings"
+})
+local v28 = v17:CreateSection({
+	Name = "Chams Settings"
+})
+local v29 = v17:CreateSection({
+	Name = "Tracers Settings",
+	Side = "Right"
+})
+local v30 = v17:CreateSection({
+	Name = "Head Dots Settings",
+	Side = "Right"
+})
+local v31 = v17:CreateSection({
+	Name = "Health Bar Settings",
+	Side = "Right"
+})
+local v32 = v18:CreateSection({
+	Name = "Settings"
+})
+local v33 = v18:CreateSection({
+	Name = "Center Dot Settings",
+	Side = "Right"
+})
+local v34 = v19:CreateSection({
+	Name = "Functions"
+})
+local AddToggle = v20.AddToggle
+local SettingsEnabled = Aimbot.Settings.Enabled
+AddToggle(v20, {
+	Name = "Enabled",
+	Value = SettingsEnabled,
+	Callback = function(p1, _)
+    Aimbot.Settings.Enabled = p1
+end
+}).Default = Aimbot.Settings.Enabled
+local Toggle = Aimbot.Settings.Toggle
+v20:AddToggle({
+	Name = "Toggle",
+	Value = Toggle,
+	Callback = function(p3, _)
+    Aimbot.Settings.Toggle = p3
+end
+}).Default = Aimbot.Settings.Toggle
+Aimbot.Settings.LockPart = t1[1]
+local v38 = t1[1]
+v20:AddDropdown({
+	Name = "Lock Part",
+	Value = v38,
+	Callback = function(p5, _)
+    Aimbot.Settings.LockPart = p5
+end,
+	List = t1,
+	Nothing = "Head"
+}).Default = t1[1]
+local TriggerKey = Aimbot.Settings.TriggerKey
+v20:AddTextbox({
+	Name = "Hotkey",
+	Value = TriggerKey,
+	Callback = function(p7, _)
+    Aimbot.Settings.TriggerKey = p7
+end
+}).Default = Aimbot.Settings.TriggerKey
+local Sensitivity = Aimbot.Settings.Sensitivity
+v20:AddSlider({
+	Name = "Sensitivity",
+	Value = Sensitivity,
+	Callback = function(p9, _)
+    Aimbot.Settings.Sensitivity = p9
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = Aimbot.Settings.Sensitivity
+local AddToggle2 = v21.AddToggle
+local TeamCheck = Aimbot.Settings.TeamCheck
+AddToggle2(v21, {
+	Name = "Team Check",
+	Value = TeamCheck,
+	Callback = function(p11, _)
+    Aimbot.Settings.TeamCheck = p11
+end
+}).Default = Aimbot.Settings.TeamCheck
+local WallCheck = Aimbot.Settings.WallCheck
+v21:AddToggle({
+	Name = "Wall Check",
+	Value = WallCheck,
+	Callback = function(p13, _)
+    Aimbot.Settings.WallCheck = p13
+end
+}).Default = Aimbot.Settings.WallCheck
+local AliveCheck = Aimbot.Settings.AliveCheck
+v21:AddToggle({
+	Name = "Alive Check",
+	Value = AliveCheck,
+	Callback = function(p15, _)
+    Aimbot.Settings.AliveCheck = p15
+end
+}).Default = Aimbot.Settings.AliveCheck
+local Settings = Aimbot.Settings
+local AddToggle3 = v22.AddToggle
+local ThirdPerson = Settings.ThirdPerson
+AddToggle3(v22, {
+	Name = "Enable Third Person",
+	Value = ThirdPerson,
+	Callback = function(p17, _)
+    Aimbot.Settings.ThirdPerson = p17
+end
+}).Default = Aimbot.Settings.ThirdPerson
+local ThirdPersonSensitivity = Aimbot.Settings.ThirdPersonSensitivity
+v22:AddSlider({
+	Name = "Sensitivity",
+	Value = ThirdPersonSensitivity,
+	Callback = function(p19, _)
+    Aimbot.Settings.ThirdPersonSensitivity = p19
+end,
+	Min = 0.1,
+	Max = 5,
+	Decimals = 1
+}).Default = Aimbot.Settings.ThirdPersonSensitivity
+local FOVSettingsEnabled = Aimbot.FOVSettings.Enabled
+v23:AddToggle({
+	Name = "Enabled",
+	Value = FOVSettingsEnabled,
+	Callback = function(p21, _)
+    Aimbot.FOVSettings.Enabled = p21
+end
+}).Default = Aimbot.FOVSettings.Enabled
+local FOVSettingsVisible = Aimbot.FOVSettings.Visible
+v23:AddToggle({
+	Name = "Visible",
+	Value = FOVSettingsVisible,
+	Callback = function(p23, _)
+    Aimbot.FOVSettings.Visible = p23
+end
+}).Default = Aimbot.FOVSettings.Visible
+local Amount = Aimbot.FOVSettings.Amount
+v23:AddSlider({
+	Name = "Amount",
+	Value = Amount,
+	Callback = function(p25, _)
+    Aimbot.FOVSettings.Amount = p25
+end,
+	Min = 10,
+	Max = 300
+}).Default = Aimbot.FOVSettings.Amount
+local Filled = Aimbot.FOVSettings.Filled
+v24:AddToggle({
+	Name = "Filled",
+	Value = Filled,
+	Callback = function(p27, _)
+    Aimbot.FOVSettings.Filled = p27
+end
+}).Default = Aimbot.FOVSettings.Filled
+local FOVSettingsTransparency = Aimbot.FOVSettings.Transparency
+v24:AddSlider({
+	Name = "Transparency",
+	Value = FOVSettingsTransparency,
+	Callback = function(p29, _)
+    Aimbot.FOVSettings.Transparency = p29
+end,
+	Min = 0,
+	Max = 1,
+	Decimal = 1
+}).Default = Aimbot.FOVSettings.Transparency
+local AddSlider = v24.AddSlider
+local Sides = Aimbot.FOVSettings.Sides
+AddSlider(v24, {
+	Name = "Sides",
+	Value = Sides,
+	Callback = function(p31, _)
+    Aimbot.FOVSettings.Sides = p31
+end,
+	Min = 3,
+	Max = 60
+}).Default = Aimbot.FOVSettings.Sides
+local FOVSettingsThickness = Aimbot.FOVSettings.Thickness
+v24:AddSlider({
+	Name = "Thickness",
+	Value = FOVSettingsThickness,
+	Callback = function(p33, _)
+    Aimbot.FOVSettings.Thickness = p33
+end,
+	Min = 1,
+	Max = 50
+}).Default = Aimbot.FOVSettings.Thickness
+local FOVSettingsColor = Aimbot.FOVSettings.Color
+v24:AddColorpicker({
+	Name = "Color",
+	Value = FOVSettingsColor,
+	Callback = function(p35, _)
+    Aimbot.FOVSettings.Color = p35
+end
+}).Default = Aimbot.FOVSettings.Color
+local FOVSettings = Aimbot.FOVSettings
+local AddColorpicker = v24.AddColorpicker
+local LockedColor = FOVSettings.LockedColor
+AddColorpicker(v24, {
+	Name = "Locked Color",
+	Value = LockedColor,
+	Callback = function(p37, _)
+    Aimbot.FOVSettings.LockedColor = p37
+end
+}).Default = Aimbot.FOVSettings.LockedColor
+local SettingsEnabled2 = WallHack.Settings.Enabled
+v25:AddToggle({
+	Name = "Enabled",
+	Value = SettingsEnabled2,
+	Callback = function(p39, _)
+    WallHack.Settings.Enabled = p39
+end
+}).Default = WallHack.Settings.Enabled
+local TeamCheck2 = WallHack.Settings.TeamCheck
+v25:AddToggle({
+	Name = "Team Check",
+	Value = TeamCheck2,
+	Callback = function(p41, _)
+    WallHack.Settings.TeamCheck = p41
+end
+}).Default = WallHack.Settings.TeamCheck
+local AddToggle4 = v25.AddToggle
+local AliveCheck2 = WallHack.Settings.AliveCheck
+AddToggle4(v25, {
+	Name = "Alive Check",
+	Value = AliveCheck2,
+	Callback = function(p43, _)
+    WallHack.Settings.AliveCheck = p43
+end
+}).Default = WallHack.Settings.AliveCheck
+local Visuals = WallHack.Visuals
+local AddToggle5 = v26.AddToggle
+local ESPSettingsEnabled = Visuals.ESPSettings.Enabled
+AddToggle5(v26, {
+	Name = "Enabled",
+	Value = ESPSettingsEnabled,
+	Callback = function(p45, _)
+    WallHack.Visuals.ESPSettings.Enabled = p45
+end
+}).Default = WallHack.Visuals.ESPSettings.Enabled
+local AddToggle6 = v26.AddToggle
+local Outline = WallHack.Visuals.ESPSettings.Outline
+AddToggle6(v26, {
+	Name = "Outline",
+	Value = Outline,
+	Callback = function(p47, _)
+    WallHack.Visuals.ESPSettings.Outline = p47
+end
+}).Default = WallHack.Visuals.ESPSettings.Outline
+local DisplayDistance = WallHack.Visuals.ESPSettings.DisplayDistance
+v26:AddToggle({
+	Name = "Display Distance",
+	Value = DisplayDistance,
+	Callback = function(p49, _)
+    WallHack.Visuals.ESPSettings.DisplayDistance = p49
+end
+}).Default = WallHack.Visuals.ESPSettings.DisplayDistance
+local AddToggle7 = v26.AddToggle
+local DisplayHealth = WallHack.Visuals.ESPSettings.DisplayHealth
+AddToggle7(v26, {
+	Name = "Display Health",
+	Value = DisplayHealth,
+	Callback = function(p51, _)
+    WallHack.Visuals.ESPSettings.DisplayHealth = p51
+end
+}).Default = WallHack.Visuals.ESPSettings.DisplayHealth
+local Visuals2 = WallHack.Visuals
+local AddToggle8 = v26.AddToggle
+local DisplayName = Visuals2.ESPSettings.DisplayName
+AddToggle8(v26, {
+	Name = "Display Name",
+	Value = DisplayName,
+	Callback = function(p53, _)
+    WallHack.Visuals.ESPSettings.DisplayName = p53
+end
+}).Default = WallHack.Visuals.ESPSettings.DisplayName
+local ESPSettingsOffset = WallHack.Visuals.ESPSettings.Offset
+v26:AddSlider({
+	Name = "Offset",
+	Value = ESPSettingsOffset,
+	Callback = function(p55, _)
+    WallHack.Visuals.ESPSettings.Offset = p55
+end,
+	Min = -30,
+	Max = 30
+}).Default = WallHack.Visuals.ESPSettings.Offset
+local Visuals3 = WallHack.Visuals
+local AddColorpicker2 = v26.AddColorpicker
+local TextColor = Visuals3.ESPSettings.TextColor
+AddColorpicker2(v26, {
+	Name = "Text Color",
+	Value = TextColor,
+	Callback = function(p57, _)
+    WallHack.Visuals.ESPSettings.TextColor = p57
+end
+}).Default = WallHack.Visuals.ESPSettings.TextColor
+local Visuals4 = WallHack.Visuals
+local AddColorpicker3 = v26.AddColorpicker
+local OutlineColor = Visuals4.ESPSettings.OutlineColor
+AddColorpicker3(v26, {
+	Name = "Outline Color",
+	Value = OutlineColor,
+	Callback = function(p59, _)
+    WallHack.Visuals.ESPSettings.OutlineColor = p59
+end
+}).Default = WallHack.Visuals.ESPSettings.OutlineColor
+local ESPSettingsTextTransparency = WallHack.Visuals.ESPSettings.TextTransparency
+v26:AddSlider({
+	Name = "Text Transparency",
+	Value = ESPSettingsTextTransparency,
+	Callback = function(p61, _)
+    WallHack.Visuals.ESPSettings.TextTransparency = p61
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Visuals.ESPSettings.TextTransparency
+local ESPSettingsTextSize = WallHack.Visuals.ESPSettings.TextSize
+v26:AddSlider({
+	Name = "Text Size",
+	Value = ESPSettingsTextSize,
+	Callback = function(p63, _)
+    WallHack.Visuals.ESPSettings.TextSize = p63
+end,
+	Min = 8,
+	Max = 24
+}).Default = WallHack.Visuals.ESPSettings.TextSize
+local v85 = t2[WallHack.Visuals.ESPSettings.TextFont + 1]
+v26:AddDropdown({
+	Name = "Text Font",
+	Value = v85,
+	Callback = function(p65, _)
+    WallHack.Visuals.ESPSettings.TextFont = Drawing.Fonts[p65]
+end,
+	List = t2,
+	Nothing = "UI"
+}).Default = t2[WallHack.Visuals.ESPSettings.TextFont + 1]
+local BoxSettings = WallHack.Visuals.BoxSettings
+local AddToggle9 = v27.AddToggle
+local BoxSettingsEnabled = BoxSettings.Enabled
+AddToggle9(v27, {
+	Name = "Enabled",
+	Value = BoxSettingsEnabled,
+	Callback = function(p67, _)
+    WallHack.Visuals.BoxSettings.Enabled = p67
+end
+}).Default = WallHack.Visuals.BoxSettings.Enabled
+local BoxSettingsTransparency = WallHack.Visuals.BoxSettings.Transparency
+v27:AddSlider({
+	Name = "Transparency",
+	Value = BoxSettingsTransparency,
+	Callback = function(p69, _)
+    WallHack.Visuals.BoxSettings.Transparency = p69
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Visuals.BoxSettings.Transparency
+local BoxSettingsThickness = WallHack.Visuals.BoxSettings.Thickness
+v27:AddSlider({
+	Name = "Thickness",
+	Value = BoxSettingsThickness,
+	Callback = function(p71, _)
+    WallHack.Visuals.BoxSettings.Thickness = p71
+end,
+	Min = 1,
+	Max = 5
+}).Default = WallHack.Visuals.BoxSettings.Thickness
+local Increase = WallHack.Visuals.BoxSettings.Increase
+v27:AddSlider({
+	Name = "Scale Increase (For 3D)",
+	Value = Increase,
+	Callback = function(p73, _)
+    WallHack.Visuals.BoxSettings.Increase = p73
+end,
+	Min = 1,
+	Max = 5
+}).Default = WallHack.Visuals.BoxSettings.Increase
+local AddColorpicker4 = v27.AddColorpicker
+local BoxSettingsColor = WallHack.Visuals.BoxSettings.Color
+AddColorpicker4(v27, {
+	Name = "Color",
+	Value = BoxSettingsColor,
+	Callback = function(p75, _)
+    WallHack.Visuals.BoxSettings.Color = p75
+end
+}).Default = WallHack.Visuals.BoxSettings.Color
+local v94 = WallHack.Visuals.BoxSettings.Type ~= 1 and "2D" or "3D"
+v27:AddDropdown({
+	Name = "Type",
+	Value = v94,
+	Callback = function(p77, _)
+    WallHack.Visuals.BoxSettings.Type = p77 ~= "3D" and 2 or 1
+end,
+	List = {
+		"3D",
+		"2D"
+	},
+	Nothing = "3D"
+}).Default = WallHack.Visuals.BoxSettings.Type ~= 1 and "2D" or "3D"
+local Filled2 = WallHack.Visuals.BoxSettings.Filled
+v27:AddToggle({
+	Name = "Filled (2D Square)",
+	Value = Filled2,
+	Callback = function(p79, _)
+    WallHack.Visuals.BoxSettings.Filled = p79
+end
+}).Default = WallHack.Visuals.BoxSettings.Filled
+local ChamsSettings = WallHack.Visuals.ChamsSettings
+local AddToggle10 = v28.AddToggle
+local ChamsSettingsEnabled = ChamsSettings.Enabled
+AddToggle10(v28, {
+	Name = "Enabled",
+	Value = ChamsSettingsEnabled,
+	Callback = function(p81, _)
+    WallHack.Visuals.ChamsSettings.Enabled = p81
+end
+}).Default = WallHack.Visuals.ChamsSettings.Enabled
+local Visuals5 = WallHack.Visuals
+local AddToggle11 = v28.AddToggle
+local Filled3 = Visuals5.ChamsSettings.Filled
+AddToggle11(v28, {
+	Name = "Filled",
+	Value = Filled3,
+	Callback = function(p83, _)
+    WallHack.Visuals.ChamsSettings.Filled = p83
+end
+}).Default = WallHack.Visuals.ChamsSettings.Filled
+local EntireBody = WallHack.Visuals.ChamsSettings.EntireBody
+v28:AddToggle({
+	Name = "Entire Body (For R15 Rigs)",
+	Value = EntireBody,
+	Callback = function(p85, _)
+    WallHack.Visuals.ChamsSettings.EntireBody = p85
+end
+}).Default = WallHack.Visuals.ChamsSettings.EntireBody
+local ChamsSettingsTransparency = WallHack.Visuals.ChamsSettings.Transparency
+v28:AddSlider({
+	Name = "Transparency",
+	Value = ChamsSettingsTransparency,
+	Callback = function(p87, _)
+    WallHack.Visuals.ChamsSettings.Transparency = p87
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Visuals.ChamsSettings.Transparency
+local ChamsSettingsThickness = WallHack.Visuals.ChamsSettings.Thickness
+v28:AddSlider({
+	Name = "Thickness",
+	Value = ChamsSettingsThickness,
+	Callback = function(p89, _)
+    WallHack.Visuals.ChamsSettings.Thickness = p89
+end,
+	Min = 0,
+	Max = 3
+}).Default = WallHack.Visuals.ChamsSettings.Thickness
+local ChamsSettings2 = WallHack.Visuals.ChamsSettings
+local AddColorpicker5 = v28.AddColorpicker
+local ChamsSettings2Color = ChamsSettings2.Color
+AddColorpicker5(v28, {
+	Name = "Color",
+	Value = ChamsSettings2Color,
+	Callback = function(p91, _)
+    WallHack.Visuals.ChamsSettings.Color = p91
+end
+}).Default = WallHack.Visuals.ChamsSettings.Color
+local Visuals6 = WallHack.Visuals
+local AddToggle12 = v29.AddToggle
+local TracersSettingsEnabled = Visuals6.TracersSettings.Enabled
+AddToggle12(v29, {
+	Name = "Enabled",
+	Value = TracersSettingsEnabled,
+	Callback = function(p93, _)
+    WallHack.Visuals.TracersSettings.Enabled = p93
+end
+}).Default = WallHack.Visuals.TracersSettings.Enabled
+local TracersSettings = WallHack.Visuals.TracersSettings
+local AddSlider2 = v29.AddSlider
+local TracersSettingsTransparency = TracersSettings.Transparency
+AddSlider2(v29, {
+	Name = "Transparency",
+	Value = TracersSettingsTransparency,
+	Callback = function(p95, _)
+    WallHack.Visuals.TracersSettings.Transparency = p95
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Visuals.TracersSettings.Transparency
+local TracersSettingsThickness = WallHack.Visuals.TracersSettings.Thickness
+v29:AddSlider({
+	Name = "Thickness",
+	Value = TracersSettingsThickness,
+	Callback = function(p97, _)
+    WallHack.Visuals.TracersSettings.Thickness = p97
+end,
+	Min = 1,
+	Max = 5
+}).Default = WallHack.Visuals.TracersSettings.Thickness
+local TracersSettings2 = WallHack.Visuals.TracersSettings
+local AddColorpicker6 = v29.AddColorpicker
+local TracersSettings2Color = TracersSettings2.Color
+AddColorpicker6(v29, {
+	Name = "Color",
+	Value = TracersSettings2Color,
+	Callback = function(p99, _)
+    WallHack.Visuals.TracersSettings.Color = p99
+end
+}).Default = WallHack.Visuals.TracersSettings.Color
+local v118 = t3[WallHack.Visuals.TracersSettings.Type]
+v29:AddDropdown({
+	Name = "Start From",
+	Value = v118,
+	Callback = function(p101, _)
+    WallHack.Visuals.TracersSettings.Type = find(t3, p101)
+end,
+	List = t3,
+	Nothing = "Bottom"
+}).Default = t2[WallHack.Visuals.TracersSettings.Type + 1]
+local HeadDotSettingsEnabled = WallHack.Visuals.HeadDotSettings.Enabled
+v30:AddToggle({
+	Name = "Enabled",
+	Value = HeadDotSettingsEnabled,
+	Callback = function(p103, _)
+    WallHack.Visuals.HeadDotSettings.Enabled = p103
+end
+}).Default = WallHack.Visuals.HeadDotSettings.Enabled
+local HeadDotSettings = WallHack.Visuals.HeadDotSettings
+local AddToggle13 = v30.AddToggle
+local Filled4 = HeadDotSettings.Filled
+AddToggle13(v30, {
+	Name = "Filled",
+	Value = Filled4,
+	Callback = function(p105, _)
+    WallHack.Visuals.HeadDotSettings.Filled = p105
+end
+}).Default = WallHack.Visuals.HeadDotSettings.Filled
+local HeadDotSettingsTransparency = WallHack.Visuals.HeadDotSettings.Transparency
+v30:AddSlider({
+	Name = "Transparency",
+	Value = HeadDotSettingsTransparency,
+	Callback = function(p107, _)
+    WallHack.Visuals.HeadDotSettings.Transparency = p107
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Visuals.HeadDotSettings.Transparency
+local HeadDotSettingsThickness = WallHack.Visuals.HeadDotSettings.Thickness
+v30:AddSlider({
+	Name = "Thickness",
+	Value = HeadDotSettingsThickness,
+	Callback = function(p109, _)
+    WallHack.Visuals.HeadDotSettings.Thickness = p109
+end,
+	Min = 1,
+	Max = 5
+}).Default = WallHack.Visuals.HeadDotSettings.Thickness
+local HeadDotSettings2 = WallHack.Visuals.HeadDotSettings
+local AddSlider3 = v30.AddSlider
+local Sides2 = HeadDotSettings2.Sides
+AddSlider3(v30, {
+	Name = "Sides",
+	Value = Sides2,
+	Callback = function(p111, _)
+    WallHack.Visuals.HeadDotSettings.Sides = p111
+end,
+	Min = 3,
+	Max = 60
+}).Default = WallHack.Visuals.HeadDotSettings.Sides
+local HeadDotSettingsColor = WallHack.Visuals.HeadDotSettings.Color
+v30:AddColorpicker({
+	Name = "Color",
+	Value = HeadDotSettingsColor,
+	Callback = function(p113, _)
+    WallHack.Visuals.HeadDotSettings.Color = p113
+end
+}).Default = WallHack.Visuals.HeadDotSettings.Color
+local HealthBarSettingsEnabled = WallHack.Visuals.HealthBarSettings.Enabled
+v31:AddToggle({
+	Name = "Enabled",
+	Value = HealthBarSettingsEnabled,
+	Callback = function(p115, _)
+    WallHack.Visuals.HealthBarSettings.Enabled = p115
+end
+}).Default = WallHack.Visuals.HealthBarSettings.Enabled
+local v130 = WallHack.Visuals.HealthBarSettings.Type == 1 and "Top"
+if not v130 then
+    v130 = WallHack.Visuals.HealthBarSettings.Type == 2 and "Bottom"
+
+    if not v130 then
+        v130 = WallHack.Visuals.HealthBarSettings.Type ~= 3 and "Right" or "Left"
+    end
+end
+local v131 = v31:AddDropdown({
+	Name = "Position",
+	Value = v130,
+	Callback = function(p117, _)
+    local HealthBarSettings = WallHack.Visuals.HealthBarSettings
+    local v279 = p117 == "Top" and 1
+
+    if not v279 then
+        v279 = if p117 ~= "Bottom" then p117 ~= "Left" and 4 or 3 else 2
+    end
+
+    HealthBarSettings.Type = v279
+end,
+	List = {
+		"Top",
+		"Bottom",
+		"Left",
+		"Right"
+	},
+	Nothing = "Left"
+})
+local v132 = WallHack.Visuals.HealthBarSettings.Type == 1 and "Top"
+if not v132 then
+    v132 = WallHack.Visuals.HealthBarSettings.Type == 2 and "Bottom"
+
+    if not v132 then
+        v132 = WallHack.Visuals.HealthBarSettings.Type ~= 3 and "Right" or "Left"
+    end
+end
+v131.Default = v132
+local HealthBarSettingsTransparency = WallHack.Visuals.HealthBarSettings.Transparency
+v31:AddSlider({
+	Name = "Transparency",
+	Value = HealthBarSettingsTransparency,
+	Callback = function(p119, _)
+    WallHack.Visuals.HealthBarSettings.Transparency = p119
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Visuals.HealthBarSettings.Transparency
+local HealthBarSettingsSize = WallHack.Visuals.HealthBarSettings.Size
+v31:AddSlider({
+	Name = "Size",
+	Value = HealthBarSettingsSize,
+	Callback = function(p121, _)
+    WallHack.Visuals.HealthBarSettings.Size = p121
+end,
+	Min = 2,
+	Max = 10
+}).Default = WallHack.Visuals.HealthBarSettings.Size
+local Blue = WallHack.Visuals.HealthBarSettings.Blue
+v31:AddSlider({
+	Name = "Blue",
+	Value = Blue,
+	Callback = function(p123, _)
+    WallHack.Visuals.HealthBarSettings.Blue = p123
+end,
+	Min = 0,
+	Max = 255
+}).Default = WallHack.Visuals.HealthBarSettings.Blue
+local Visuals7 = WallHack.Visuals
+local AddSlider4 = v31.AddSlider
+local HealthBarSettingsOffset = Visuals7.HealthBarSettings.Offset
+AddSlider4(v31, {
+	Name = "Offset",
+	Value = HealthBarSettingsOffset,
+	Callback = function(p125, _)
+    WallHack.Visuals.HealthBarSettings.Offset = p125
+end,
+	Min = -30,
+	Max = 30
+}).Default = WallHack.Visuals.HealthBarSettings.Offset
+local OutlineColor2 = WallHack.Visuals.HealthBarSettings.OutlineColor
+v31:AddColorpicker({
+	Name = "Outline Color",
+	Value = OutlineColor2,
+	Callback = function(p127, _)
+    WallHack.Visuals.HealthBarSettings.OutlineColor = p127
+end
+}).Default = WallHack.Visuals.HealthBarSettings.OutlineColor
+local MouseIconEnabled = UserInputService.MouseIconEnabled
+v32:AddToggle({
+	Name = "Mouse Cursor",
+	Value = MouseIconEnabled,
+	Callback = function(p129, _)
+    UserInputService.MouseIconEnabled = p129
+end
+}).Default = UserInputService.MouseIconEnabled
+local SettingsEnabled3 = WallHack.Crosshair.Settings.Enabled
+v32:AddToggle({
+	Name = "Enabled",
+	Value = SettingsEnabled3,
+	Callback = function(p131, _)
+    WallHack.Crosshair.Settings.Enabled = p131
+end
+}).Default = WallHack.Crosshair.Settings.Enabled
+local SettingsColor = WallHack.Crosshair.Settings.Color
+v32:AddColorpicker({
+	Name = "Color",
+	Value = SettingsColor,
+	Callback = function(p133, _)
+    WallHack.Crosshair.Settings.Color = p133
+end
+}).Default = WallHack.Crosshair.Settings.Color
+local Settings2 = WallHack.Crosshair.Settings
+local AddSlider5 = v32.AddSlider
+local Settings2Transparency = Settings2.Transparency
+AddSlider5(v32, {
+	Name = "Transparency",
+	Value = Settings2Transparency,
+	Callback = function(p135, _)
+    WallHack.Crosshair.Settings.Transparency = p135
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Crosshair.Settings.Transparency
+local SettingsSize = WallHack.Crosshair.Settings.Size
+v32:AddSlider({
+	Name = "Size",
+	Value = SettingsSize,
+	Callback = function(p137, _)
+    WallHack.Crosshair.Settings.Size = p137
+end,
+	Min = 8,
+	Max = 24
+}).Default = WallHack.Crosshair.Settings.Size
+local SettingsThickness = WallHack.Crosshair.Settings.Thickness
+v32:AddSlider({
+	Name = "Thickness",
+	Value = SettingsThickness,
+	Callback = function(p139, _)
+    WallHack.Crosshair.Settings.Thickness = p139
+end,
+	Min = 1,
+	Max = 5
+}).Default = WallHack.Crosshair.Settings.Thickness
+local GapSize = WallHack.Crosshair.Settings.GapSize
+v32:AddSlider({
+	Name = "Gap Size",
+	Value = GapSize,
+	Callback = function(p141, _)
+    WallHack.Crosshair.Settings.GapSize = p141
+end,
+	Min = 0,
+	Max = 20
+}).Default = WallHack.Crosshair.Settings.GapSize
+local Crosshair = WallHack.Crosshair
+local AddSlider6 = v32.AddSlider
+local SettingsRotation = Crosshair.Settings.Rotation
+AddSlider6(v32, {
+	Name = "Rotation (Degrees)",
+	Value = SettingsRotation,
+	Callback = function(p143, _)
+    WallHack.Crosshair.Settings.Rotation = p143
+end,
+	Min = -180,
+	Max = 180
+}).Default = WallHack.Crosshair.Settings.Rotation
+local v152 = WallHack.Crosshair.Settings.Type ~= 1 and "Center" or "Mouse"
+v32:AddDropdown({
+	Name = "Position",
+	Value = v152,
+	Callback = function(p145, _)
+    WallHack.Crosshair.Settings.Type = p145 ~= "Mouse" and 2 or 1
+end,
+	List = {
+		"Mouse",
+		"Center"
+	},
+	Nothing = "Mouse"
+}).Default = WallHack.Crosshair.Settings.Type ~= 1 and "Center" or "Mouse"
+local CenterDot = WallHack.Crosshair.Settings.CenterDot
+v33:AddToggle({
+	Name = "Center Dot",
+	Value = CenterDot,
+	Callback = function(p147, _)
+    WallHack.Crosshair.Settings.CenterDot = p147
+end
+}).Default = WallHack.Crosshair.Settings.CenterDot
+local CenterDotColor = WallHack.Crosshair.Settings.CenterDotColor
+v33:AddColorpicker({
+	Name = "Center Dot Color",
+	Value = CenterDotColor,
+	Callback = function(p149, _)
+    WallHack.Crosshair.Settings.CenterDotColor = p149
+end
+}).Default = WallHack.Crosshair.Settings.CenterDotColor
+local CenterDotSize = WallHack.Crosshair.Settings.CenterDotSize
+v33:AddSlider({
+	Name = "Center Dot Size",
+	Value = CenterDotSize,
+	Callback = function(p151, _)
+    WallHack.Crosshair.Settings.CenterDotSize = p151
+end,
+	Min = 1,
+	Max = 6
+}).Default = WallHack.Crosshair.Settings.CenterDotSize
+local CenterDotTransparency = WallHack.Crosshair.Settings.CenterDotTransparency
+v33:AddSlider({
+	Name = "Center Dot Transparency",
+	Value = CenterDotTransparency,
+	Callback = function(p153, _)
+    WallHack.Crosshair.Settings.CenterDotTransparency = p153
+end,
+	Min = 0,
+	Max = 1,
+	Decimals = 2
+}).Default = WallHack.Crosshair.Settings.CenterDotTransparency
+local CenterDotFilled = WallHack.Crosshair.Settings.CenterDotFilled
+v33:AddToggle({
+	Name = "Center Dot Filled",
+	Value = CenterDotFilled,
+	Callback = function(p155, _)
+    WallHack.Crosshair.Settings.CenterDotFilled = p155
+end
+}).Default = WallHack.Crosshair.Settings.CenterDotFilled
+v34:AddButton({
+	Name = "Reset Settings",
+	Callback = function()
+    Aimbot.Functions:ResetSettings()
+    WallHack.Functions:ResetSettings()
+    v8.ResetAll()
+end
+})
+v34:AddButton({
+	Name = "Restart",
+	Callback = function()
+    Aimbot.Functions:Restart()
+    WallHack.Functions:Restart()
+end
+})
+local AddButton = v34.AddButton
+local Unload = v8.Unload
+AddButton(v34, {
+	Name = "Exit",
+	Callback = Unload
+})
+v34:AddButton({
+	Name = "Copy Script Page",
+	Callback = function()
+    _setclipboard("https://github.com/Swemp-Hub")
+end
+})
